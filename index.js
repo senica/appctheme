@@ -1,3 +1,4 @@
+#! /usr/bin/env node
 /*
  * node build.js --skip-icons --theme=<theme-directory>
  */
