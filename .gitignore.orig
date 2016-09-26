@@ -1,4 +1,6 @@
+<<<<<<< HEAD
 env/
+=======
 # Logs
 logs
 *.log
@@ -36,3 +38,4 @@ jspm_packages
 
 # Optional REPL history
 .node_repl_history
+>>>>>>> df3e2638391bab8ca0a71f06398271fc4f578055
