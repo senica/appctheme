@@ -1,6 +1,8 @@
 # appctheme
 Simple theme builder for appcelerator apps. This is for a very specific use case where we had an appcelerator app that needed to be replicated (or white-labeled) and the only thing that was changing was *colors*, *logo*, and *title*. As it's very specific, please read through the entire Setup.
 
+![Screencast](https://cdn.rawgit.com/senica/appctheme/master/out.gif)
+
 # Install
 Run `npm install appctheme -g`
 
