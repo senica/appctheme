@@ -1,6 +1,6 @@
 {
   "name": "appctheme",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Simple theme compiler for appcelerator apps from the command line.",
   "main": "index.js",
   "bin": "./index.js",
@@ -13,9 +13,10 @@
   },
   "keywords": [
     "appcelerator",
-    "theme"
+    "theme",
+    "white-label"
   ],
-  "author": "Senica Gonzalez",
+  "author": "Senica Gonzalez senica@gmail.com",
   "license": "GPL-3.0",
   "bugs": {
     "url": "https://github.com/senica/appctheme/issues"
