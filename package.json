@@ -1,6 +1,6 @@
 {
   "name": "appctheme",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Simple theme compiler for appcelerator apps from the command line.",
   "main": "index.js",
   "bin": "./index.js",
@@ -26,6 +26,6 @@
     "canvas": "^1.5.0",
     "inquirer": "^1.1.3",
     "minimist": "^1.2.0",
-    "pica": "^2.0.6"
+    "pica": "git+https://github.com/senica/pica.git"
   }
 }

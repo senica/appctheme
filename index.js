@@ -1,4 +1,5 @@
 #! /usr/bin/env node
+var dir = process.cwd()
 /*
  * node build.js --skip-icons --theme=<theme-directory>
  */
@@ -15,14 +16,19 @@ var a = require('minimist')(process.argv.slice(2), {
 });
 
 if(!a.theme){
-  console.log('Must provide a theme:\r\nnode build.js --theme=xxx');
+  console.log('You may provide a theme:\r\nappctheme --theme=xxx');
   selectTheme();
 }else{
   checkTheme(a.theme);
 }
 
 function checkTheme(theme){
-  var themes = fs.readdirSync(__dirname + '/app/themes');
+  try{
+    var themes = fs.readdirSync(dir + '/app/themes');
+  }catch(e){
+    console.log('You should run this from the root of your appcelerator project and there should be a themes directory in your app folder.');
+    return;
+  }
   if(themes.indexOf(theme) < 0){
     console.log('Invalid theme provided.\r\n');
     selectTheme();
@@ -32,12 +38,19 @@ function checkTheme(theme){
 }
 
 function selectTheme(){
+  var themes = [];
+  try{
+    themes = fs.readdirSync(dir + '/app/themes');
+  }catch(e){}
+  if(!themes.length){
+    console.log('You should run this from the root of your appcelerator project and there should be a themes directory in your app folder.');
+    return;
+  }
   inquirer.prompt([{
     type: 'list',
     name: 'theme',
     message: 'Select one of the available themes below:',
     choices: function(){
-      var themes = fs.readdirSync(__dirname + '/app/themes');
       return themes;
     },
   }]).then(function (answers) {
@@ -49,7 +62,7 @@ function selectTheme(){
 var base, app, resources, theme;
 function copy(_theme){
   console.log('Building theme: ', _theme);
-  base = __dirname;
+  base = dir;
   app = base + '/app';
   resources = base + '/Resources';
   theme = app + '/themes/'+_theme;
