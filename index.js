@@ -12,14 +12,38 @@ var a = require('minimist')(process.argv.slice(2), {
   default: {
     theme: null,
     'skip-assets': false,
+    platform: null,
   }
 });
 
-if(!a.theme){
-  console.log('You may provide a theme:\r\nappctheme --theme=xxx');
-  selectTheme();
+if(!a.platform){
+  selectPlatform();
 }else{
-  checkTheme(a.theme);
+  getTheme();
+}
+
+function selectPlatform(){
+  inquirer.prompt([{
+    type: 'list',
+    name: 'platform',
+    message: 'Which platform are you targeting?',
+    choices: [
+      {name: 'Android', value: 'android'},
+      {name: 'iOS', value: 'ios'},
+    ],
+  }]).then(function (answers) {
+    a.platform = answers.platform;
+    getTheme();
+  });
+}
+
+function getTheme(){
+  if(!a.theme){
+    console.log('You may provide a theme:\r\nappctheme --theme=xxx');
+    selectTheme();
+  }else{
+    checkTheme(a.theme);
+  }
 }
 
 function checkTheme(theme){
@@ -140,6 +164,8 @@ function copy(_theme){
 
       // Default
       { width: 1024, height: 1024, title: 'DefaultIcon.png', default: true},
+      { width: 1024, height: 1024, title: 'appicon.png', default: true},
+      { width: 1024, height: 1024, title: 'default.png', default: true},
       /*
       { width: 1024, height: 1024, title: 'DefaultIcon.png', default: true},
       { width: 1024, height: 1024, title: 'DefaultIcon-ios.png', background: false},
@@ -164,7 +190,11 @@ function copy(_theme){
         var canvas = new Canvas(size.width, size.height);
         var min = Math.min(size.width, size.height);
 
-        var file = size.default === true ? (base + '/' + size.title) : (app + '/platform/iphone/' + size.title);
+        if(a.platform == 'android'){
+          var file = size.default === true ? (app + '/assets/android/' + size.title) : (app + '/platform/android/' + size.title);
+        }else if(a.platform == 'ios'){
+          var file = size.default === true ? (base + '/' + size.title) : (app + '/platform/iphone/' + size.title);
+        }
         var out = fs.createWriteStream(file)
         var stream = canvas.pngStream();
         stream.on('data', function(chunk){
@@ -207,7 +237,7 @@ function appc(){
     choices: [
       {name: 'Clean', value: 'clean'},
       {name: 'Test on Simulator', value: 'test'},
-      {name: 'Deploy to App Store', value: 'deploy'},
+      {name: 'Deploy', value: 'deploy'},
       {name: 'Exit', value: 'exit'},
     ],
   }]).then(function (answers) {
@@ -239,79 +269,196 @@ function clean(){
 
 function getDevices(cb){
   console.log('Getting list of devices...');
-  var devices = '';
-  var child = spawn('instruments', [
-    '-s', 'devices',
-  ]);
+  if(a.platform == 'ios'){
+    var devices = '';
+    var child = spawn('instruments', [
+      '-s', 'devices',
+    ]);
 
-  child.stdout.on('data', function(data){
-    devices += data;
-  });
-
-  child.on('close', function(){
-    devices = devices.split(/\n/g);
-    devices.shift(); // Remove 'Known Devices'
-    var _devices = [];
-    devices.forEach(function(device){
-      var matches = /^([^\[]+)\[([^\]]+)\](.*?)$/.exec(device);
-      if(matches && matches.length)
-        _devices.push({name: matches[1] + matches[3], value: matches[2] });
+    child.stdout.on('data', function(data){
+      devices += data;
     });
 
-    inquirer.prompt([{
-      type: 'list',
-      name: 'device',
-      message: 'Select your device:',
-      choices: _devices,
-    }]).then(function (answers) {
-      cb(answers.device);
+    child.on('close', function(){
+      devices = devices.split(/\n/g);
+      devices.shift(); // Remove 'Known Devices'
+      var _devices = [];
+      devices.forEach(function(device){
+        var matches = /^([^\[]+)\[([^\]]+)\](.*?)$/.exec(device);
+        if(matches && matches.length)
+          _devices.push({name: matches[1] + matches[3], value: matches[2] });
+      });
+
+      inquirer.prompt([{
+        type: 'list',
+        name: 'device',
+        message: 'Select your device:',
+        choices: _devices,
+      }]).then(function (answers) {
+        cb(answers.device);
+      });
+
+    })
+  }else if(a.platform == 'android'){
+    var devices = '';
+    var child = spawn('appc', [
+      'ti', 'info', '-t', 'android'
+    ]);
+
+    child.stdout.on('data', function(data){
+      devices += data;
     });
 
-  })
+    child.on('close', function(){
+      devices = devices.split(/\n/g);
+      var _devices = [];
+      devices.forEach(function(device, i){
+        if(device == 'Android Emulators'){
+          var id = devices[i+1].replace(/^\s+/, '').replace(/\s+$/, '');
+          _devices.push({name: 'Emulator - '+id, value: id, type: 'emulator'});
+        }if(device == 'Connected Android Devices'){
+          // only grabbing the first one for now
+          var id = devices[i+1].replace(/^\s+/, '').replace(/\s+$/, '');
+          _devices.push({name: 'Device - '+id, value: id, type: 'device'});
+        }
+      });
+
+      inquirer.prompt([{
+        type: 'list',
+        name: 'device',
+        message: 'Select your device:',
+        choices: _devices,
+      }]).then(function (answers, test) {
+        for(var i in _devices){
+          if(_devices[i].value == answers.device){
+            return cb(_devices[i]);
+          }
+        }
+      });
+
+    })
+  }
 }
 
 function test(deviceid){
-  //appc run -p ios -T simulator -C "C13CE766-CAE5-4AD8-B99A-8C85BE6FAFAD"
-  var child = spawn('appc', [
-    'run', '-p', 'ios', '-T', 'simulator', '-C', deviceid
-  ], {
-    shell: true,
-    stdio: 'inherit',
-  });
+  if(a.platform == 'ios'){
+    //appc run -p ios -T simulator -C "C13CE766-CAE5-4AD8-B99A-8C85BE6FAFAD"
+    var child = spawn('appc', [
+      'run', '-p', 'ios', '-T', 'simulator', '-C', deviceid
+    ], {
+      shell: true,
+      stdio: 'inherit',
+    });
 
-  child.on('close', function(){
-    console.log('finished testing');
-  })
+    child.on('close', function(){
+      console.log('finished testing');
+    })
+  }else if(a.platform == 'android'){
+    //appc run -p android -T device
+    // appc run -p android
+    //appc run -p android -T device --device-id <DEVICE_ID>
+    var ar = [
+      'run', '-p', 'android'
+    ];
+    if(deviceid){
+      ar.push('--device-id', deviceid.value, '-T', deviceid.type);
+    }
+    console.log('appc ' + ar.join(' '));
+    var child = spawn('appc', ar, {
+      shell: true,
+      stdio: 'inherit',
+    });
+
+    child.on('close', function(){
+      console.log('finished testing');
+    })
+  }
 }
 
 function checkVersion(cb){
   var xml = fs.readFileSync(theme + '/tiapp.xml').toString();
-  var matches = /([^]+)(<version>)([^<]+)(<\/version>)([^]+)/gmi.exec(xml);
-  var version = matches[3];
-  inquirer.prompt([{
-    type: 'input',
-    name: 'version',
-    message: 'Enter new version or press <enter> to keep current ['+version+']:',
-  }]).then(function (answers) {
-    if(answers.version){
-      console.log('Changing to version:' + answers.version);
-      version = answers.version;
-      var newversion = matches[1] + matches[2] + answers.version + matches[4] + matches[5];
+
+  if(a.platform == 'android'){
+    var versionCode = "1";
+    var versionCodes = /([^]+)(<android[^<]+)(<manifest)([^>]+)?([^]+)/gmi.exec(xml);
+    if(versionCodes[4]){
+      var _versionCodes = /([^]+)(android:versionCode=")([^\"]+)?([^]+)/gmi.exec(versionCodes[4]);
+      // remove versioncode from manifest so we can build it later
+      versionCode = _versionCodes[3];
+      versionCodes[4] = _versionCodes[1] + _versionCodes[4];
+    }else{
+      versionCodes[4] = '';
+    }
+    inquirer.prompt([{
+      type: 'input',
+      name: 'version',
+      message: 'Enter new versionCode or press <enter> to keep current ['+versionCode+']:',
+    }]).then(function (answers) {
+      if(answers.version){
+        versionCode = answers.version;
+        console.log('Changing to versionCode:' + answers.version);
+      }
+      versionCodes[4] += ' android:versionCode="'+versionCode+'"';
+      xml = versionCodes[1] + versionCodes[2] + versionCodes[3] + versionCodes[4] + versionCodes[5];
+      version();
+    });
+  }else{
+    version();
+  }
+
+  function version(){
+    var matches = /([^]+)(<version>)([^<]+)(<\/version>)([^]+)/gmi.exec(xml);
+    var version = matches[3];
+    inquirer.prompt([{
+      type: 'input',
+      name: 'version',
+      message: 'Enter new version or press <enter> to keep current ['+version+']:',
+    }]).then(function (answers) {
+      if(answers.version){
+        version = answers.version;
+        console.log('Changing to version:' + version);
+      }else{
+        console.log("Keeping current version: ", version);
+      }
+      var newversion = matches[1] + matches[2] + version + matches[4] + matches[5];
       fs.writeFileSync(theme + '/tiapp.xml', newversion);
       console.log('Creating copy for build...');
       fs.writeFileSync(base + '/tiapp.xml', newversion);
-      cb(answers.version);
-      return;
-    }
-    console.log("Keeping current version: ", version);
-    cb(version);
-  });
+      cb(version);
+    });
+  }
 }
 
 function deploy(){
   console.log('Building...');
+  if(a.platform == 'ios'){
+    var child = spawn('appc', [
+      'run', '-f', '-p', 'ios', '-F', 'universal', '-T', 'dist-appstore', '-I', '9.3'
+    ], {
+      shell: true,
+      stdio: 'inherit',
+    });
+  }else if(a.platform == 'android'){
+    var child = spawn('appc', [
+      'run', '-f', '-p', 'android', '-T', 'dist-playstore'
+    ], {
+      shell: true,
+      stdio: 'inherit',
+    });
+  }
+
+  child.on('close', function(){
+    console.log('Finished building.');
+    appc();
+  })
+}
+
+function googlePlay(){
+  console.log('Building...');
+  //appc run -p android -T dist-playstore
+  //'-F', 'universal',
   var child = spawn('appc', [
-    'run', '-f', '-p', 'ios', '-F', 'universal', '-T', 'dist-appstore', '-I', '9.3'
+    'run', '-f', '-p', 'android', '-T', 'dist-playstore'
   ], {
     shell: true,
     stdio: 'inherit',
