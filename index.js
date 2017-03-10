@@ -237,6 +237,7 @@ function appc(){
     choices: [
       {name: 'Clean', value: 'clean'},
       {name: 'Test on Simulator', value: 'test'},
+      {name: 'Test on Device', value: 'device'},
       {name: 'Deploy', value: 'deploy'},
       {name: 'Exit', value: 'exit'},
     ],
@@ -245,6 +246,8 @@ function appc(){
       clean();
     }else if(answers.what == 'exit'){
       return;
+    }else if(answers.what == 'device'){
+      testDevice();
     }else if(answers.what == 'test'){
       getDevices(test);
     }else if(answers.what == 'deploy'){
@@ -373,6 +376,46 @@ function test(deviceid){
       console.log('finished testing');
     })
   }
+}
+
+function testDevice(){
+  //if(a.platform == 'ios'){
+    //appc run -p ios -T device
+    console.log(`You will need to register the device in the developer console.
+      Then create a DEVELOPMENT provisioning profile with that device added.
+      Download and add the provisioning profile to Xcode by dragging it on the
+      icon (or do it through preferences). The run the above command.`)
+    var child = spawn('appc', [
+      'run', '-p', 'ios', '-T', 'device'
+    ], {
+      shell: true,
+      stdio: 'inherit',
+    });
+
+    child.on('close', function(){
+      console.log('finished testing');
+      appc()
+    })
+  /*}else if(a.platform == 'android'){
+    //appc run -p android -T device
+    // appc run -p android
+    //appc run -p android -T device --device-id <DEVICE_ID>
+    var ar = [
+      'run', '-p', 'android'
+    ];
+    if(deviceid){
+      ar.push('--device-id', deviceid.value, '-T', deviceid.type);
+    }
+    console.log('appc ' + ar.join(' '));
+    var child = spawn('appc', ar, {
+      shell: true,
+      stdio: 'inherit',
+    });
+
+    child.on('close', function(){
+      console.log('finished testing');
+    })
+  }*/
 }
 
 function checkVersion(cb){
